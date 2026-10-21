@@ -1,0 +1,359 @@
+:root {
+  --bg: #fbf8f1;
+  --surface: #ffffff;
+  --ink: #1d2433;
+  --muted: #5d6679;
+  --line: #e4dfd2;
+  --accent: #1f5fbf;
+  --accent-soft: #e6eefb;
+  --formula-bg: #eef3ff;
+  --formula-line: #b9cdf2;
+  --example-bg: #f1f8f0;
+  --example-line: #b7d9b2;
+  --warn-bg: #fff4e5;
+  --warn-line: #f0c98f;
+  --grid: rgba(31, 95, 191, 0.08);
+  --sidebar-w: 300px;
+  --radius: 12px;
+  --serif: Georgia, "Times New Roman", serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171f;
+    --surface: #1b1f2a;
+    --ink: #e7eaf2;
+    --muted: #9aa3b8;
+    --line: #2b3140;
+    --accent: #7aa9ff;
+    --accent-soft: #1f2a42;
+    --formula-bg: #1c2640;
+    --formula-line: #34497a;
+    --example-bg: #192a1c;
+    --example-line: #2f5a35;
+    --warn-bg: #33281a;
+    --warn-line: #6b5230;
+    --grid: rgba(122, 169, 255, 0.08);
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: var(--accent); }
+
+/* ---------- боковое меню ---------- */
+
+.sidebar {
+  flex: none;
+  position: sticky;
+  top: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
+  overflow-y: auto;
+  padding: 20px 16px 32px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.search {
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+.search:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.nav-section { margin-bottom: 18px; }
+.nav-section h3 {
+  margin: 0 0 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.nav a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 15.5px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.nav a:hover { background: var(--accent-soft); }
+.nav a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* ---------- основная колонка ---------- */
+
+.content {
+  flex: 1;
+  min-width: 0;
+  padding: 40px clamp(20px, 5vw, 64px) 56px;
+}
+
+.index, .note, .pager { max-width: 780px; margin-left: auto; margin-right: auto; }
+
+.footer {
+  max-width: 780px;
+  margin: 56px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ---------- главная ---------- */
+
+.hero {
+  margin-bottom: 36px;
+  padding: 36px 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.hero h1 {
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-size: clamp(30px, 5vw, 42px);
+  line-height: 1.15;
+}
+.hero p { margin: 0; font-size: 19px; color: var(--muted); }
+.hero .hero-meta { margin-top: 14px; font-size: 15px; }
+
+.section h2 {
+  margin: 0 0 14px;
+  font-family: var(--serif);
+  font-size: 26px;
+}
+.section { margin-bottom: 34px; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+.card-title { font-weight: 700; font-size: 18px; color: var(--accent); }
+.card-text { font-size: 15px; line-height: 1.5; color: var(--muted); }
+.empty { color: var(--muted); }
+
+/* ---------- конспект ---------- */
+
+.crumb { margin: 0 0 6px; font-size: 14px; color: var(--muted); }
+.crumb a { color: var(--muted); }
+
+.note h1 {
+  margin: 0 0 18px;
+  font-family: var(--serif);
+  font-size: clamp(30px, 5vw, 40px);
+  line-height: 1.15;
+}
+.note h2 {
+  margin: 36px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--line);
+  font-family: var(--serif);
+  font-size: 25px;
+}
+.note h3 { margin: 24px 0 8px; font-size: 19px; }
+.note p { margin: 0 0 14px; }
+.note ul, .note ol { margin: 0 0 14px; padding-left: 24px; }
+.note li { margin-bottom: 6px; }
+.note img { display: block; max-width: 100%; height: auto; margin: 18px auto; border-radius: 8px; }
+.note code { padding: 1px 5px; border-radius: 5px; background: var(--accent-soft); font-size: 0.92em; }
+.note .lead { font-size: 19px; color: var(--muted); }
+
+.note table {
+  width: 100%;
+  margin: 16px 0;
+  border-collapse: collapse;
+  font-size: 16px;
+}
+.note th, .note td {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.note th { background: var(--accent-soft); }
+
+/* блоки-выноски: .formula, .example, .mistakes */
+.formula, .example, .mistakes {
+  margin: 18px 0;
+  padding: 14px 18px;
+  border: 1px solid;
+  border-left-width: 5px;
+  border-radius: var(--radius);
+}
+.formula { background: var(--formula-bg); border-color: var(--formula-line); border-left-color: var(--accent); }
+.example { background: var(--example-bg); border-color: var(--example-line); border-left-color: #3f9142; }
+.mistakes { background: var(--warn-bg); border-color: var(--warn-line); border-left-color: #d98a1f; }
+
+.formula > :last-child, .example > :last-child, .mistakes > :last-child { margin-bottom: 0; }
+.example .title, .mistakes .title, .formula .title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.formula p { margin-bottom: 8px; }
+.formula .what { color: var(--muted); font-size: 15px; }
+
+mjx-container[display="true"] { overflow-x: auto; overflow-y: hidden; max-width: 100%; }
+
+/* ---------- кнопки «назад / дальше» ---------- */
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 44px;
+}
+.pager a {
+  display: block;
+  max-width: 48%;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.pager a:hover { border-color: var(--accent); }
+.pager small { display: block; font-weight: 400; color: var(--muted); }
+.pager-next { margin-left: auto; text-align: right; }
+
+/* ---------- телефон ---------- */
+
+.topbar, .scrim { display: none; }
+
+@media (max-width: 860px) {
+  body { display: block; }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .menu-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .topbar-title {
+    font-family: var(--serif);
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    width: min(86vw, 320px);
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+  }
+  body.nav-open .sidebar { transform: none; box-shadow: 0 0 40px rgba(0, 0, 0, 0.3); }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.4);
+  }
+  body.nav-open .scrim { display: block; }
+
+  .content { padding-top: 24px; }
+  .hero { padding: 24px 20px; }
+  .pager a { max-width: 100%; }
+  .pager { flex-direction: column; }
+  .pager-next { margin-left: 0; text-align: left; }
+}
+
+/* ---------- печать: можно сохранить конспект в PDF ---------- */
+
+@media print {
+  .sidebar, .topbar, .scrim, .pager, .footer { display: none !important; }
+  body { display: block; background: #fff; color: #000; font-size: 12pt; }
+  .content { padding: 0; }
+  .formula, .example, .mistakes { break-inside: avoid; }
+}
