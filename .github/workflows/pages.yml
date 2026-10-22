@@ -34,7 +34,7 @@ jobs:
           java-version: '17'
 
       - name: Build static site
-        run: java Main.java export dist
+        run: java -Dfile.encoding=UTF-8 Main.java export dist
 
       - name: Set up Pages
         uses: actions/configure-pages@v5

@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
@@ -44,7 +45,11 @@ public class Main {
     static final Pattern NOTE_LINK = Pattern.compile("href=([\"'])/note/([a-z0-9-]+)\\1");
     static final Pattern HOME_LINK = Pattern.compile("href=([\"'])/\\1");
 
-    record Note(String slug, String title, String section, int order, String summary, String body) {}
+    /** icon: необязательная иконка конспекта (если пусто, берётся иконка раздела). */
+    record Note(String slug, String title, String section, int order, String summary, String icon, String body) {}
+
+    /** Оформление раздела: оттенок цвета (0-359) и иконка. */
+    record Theme(int hue, String icon) {}
 
     /**
      * Как строить ссылки. Сервер отдаёт страницы по адресам /note/имя, а при выгрузке в файлы
@@ -282,7 +287,7 @@ public class Main {
                             + " (save the file as UTF-8): " + e, e);
                 }
                 System.err.println("Cannot read " + file.getFileName() + ": " + e);
-                result.add(new Note(slug, "Не читается: " + file.getFileName(), "Ошибки", 9999, "",
+                result.add(new Note(slug, "Не читается: " + file.getFileName(), "Ошибки", 9999, "", "",
                         "<p>Файл <code>" + esc(file.getFileName().toString()) + "</code> не удалось прочитать. "
                                 + "Скорее всего, он сохранён не в кодировке UTF-8. "
                                 + "Пересохрани его как UTF-8 и обнови страницу.</p>"));
@@ -316,7 +321,7 @@ public class Main {
                 for (int i = 0; i < sep; i++) {
                     int colon = lines[i].indexOf(':');
                     if (colon > 0) {
-                        meta.put(lines[i].substring(0, colon).strip().toLowerCase(), lines[i].substring(colon + 1).strip());
+                        meta.put(lines[i].substring(0, colon).strip().toLowerCase(Locale.ROOT), lines[i].substring(colon + 1).strip());
                     }
                 }
                 body = String.join("\n", Arrays.copyOfRange(lines, sep + 1, lines.length));
@@ -335,6 +340,7 @@ public class Main {
                 meta.getOrDefault("section", "Без раздела"),
                 order,
                 meta.getOrDefault("summary", ""),
+                meta.getOrDefault("icon", ""),
                 body);
     }
 
@@ -356,33 +362,132 @@ public class Main {
         return body;
     }
 
+    // ------------------------------------------------------------ оформление разделов
+
+    static final int[] PALETTE = {215, 18, 262, 190, 335, 295, 150, 35};
+
+    /** Цвет и иконка раздела подбираются по названию, неизвестные разделы получают стабильный цвет. */
+    static Theme themeOf(String section) {
+        String s = section.toLowerCase(Locale.ROOT);
+        if (s.contains("механик") || s.contains("кинемат") || s.contains("динамик")) return new Theme(215, "⚙️");
+        if (s.contains("молекул") || s.contains("термо") || s.contains("тепл")) return new Theme(18, "🌡️");
+        if (s.contains("электр") || s.contains("магнит")) return new Theme(262, "⚡");
+        if (s.contains("колеб") || s.contains("волн")) return new Theme(190, "🌊");
+        if (s.contains("оптик") || s.contains("свет")) return new Theme(335, "🔭");
+        if (s.contains("атом") || s.contains("квант") || s.contains("ядер")) return new Theme(295, "⚛️");
+        if (s.contains("ошибк")) return new Theme(0, "⚠️");
+        return new Theme(PALETTE[Math.floorMod(s.hashCode(), PALETTE.length)], "📘");
+    }
+
+    static String iconOf(Note n) {
+        return n.icon().isBlank() ? themeOf(n.section()).icon() : n.icon();
+    }
+
+    static int count(String text, String needle) {
+        int n = 0;
+        for (int i = text.indexOf(needle); i >= 0; i = text.indexOf(needle, i + needle.length())) {
+            n++;
+        }
+        return n;
+    }
+
+    /** Склонение для чисел: 1 тема, 2 темы, 5 тем. */
+    static String plural(int n, String one, String few, String many) {
+        int m100 = n % 100;
+        int m10 = n % 10;
+        if (m100 >= 11 && m100 <= 14) return many;
+        if (m10 == 1) return one;
+        if (m10 >= 2 && m10 <= 4) return few;
+        return many;
+    }
+
     // ------------------------------------------------------------------- HTML
 
     static String indexContent(Urls u, List<Note> notes) {
         Map<String, List<Note>> sections = bySection(notes);
-        StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"index\">");
-        sb.append("<header class=\"hero\"><h1>").append(esc(SITE_NAME)).append("</h1>")
-          .append("<p>Коротко и по делу: определения, формулы и разобранные задачи.</p>");
-        if (!notes.isEmpty()) {
-            sb.append("<p class=\"hero-meta\">Тем: ").append(notes.size())
-              .append(" · Разделов: ").append(sections.size()).append("</p>");
+        int formulas = 0;
+        int tasks = 0;
+        for (Note n : notes) {
+            formulas += count(n.body(), "\\[");
+            tasks += count(n.body(), "class=\"example\"");
         }
-        sb.append("</header>");
 
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"home\">");
+
+        // --- главный экран
+        sb.append("<header class=\"landing\">")
+          .append("<div class=\"floaters\" aria-hidden=\"true\">")
+          .append("<span style=\"--x:57%;--y:9%;--r:-6deg;--s:1.3\">E = mc²</span>")
+          .append("<span style=\"--x:80%;--y:27%;--r:5deg\">F = ma</span>")
+          .append("<span style=\"--x:72%;--y:46%;--r:-4deg;--d:1.5s\">pV = νRT</span>")
+          .append("<span style=\"--x:83%;--y:66%;--r:7deg;--s:1.15;--d:.8s\">U = IR</span>")
+          .append("<span style=\"--x:58%;--y:80%;--r:-5deg;--d:2s\">v = v₀ + at</span>")
+          .append("<span style=\"--x:78%;--y:88%;--r:-3deg;--d:.4s\">Q = cmΔt</span>")
+          .append("</div>")
+          .append("<div class=\"landing-body\">")
+          .append("<p class=\"eyebrow\">Формулы · задачи · разбор ошибок</p>")
+          .append("<h1>").append(esc(SITE_NAME)).append("</h1>")
+          .append("<p class=\"landing-text\">Коротко и по делу: определения, формулы и разобранные задачи. "
+                  + "Всё, что нужно, чтобы быстро повторить тему.</p>")
+          .append("<div class=\"landing-actions\">");
+        if (!notes.isEmpty()) {
+            sb.append("<a class=\"btn btn-main\" href=\"").append(u.note(notes.get(0).slug()))
+              .append("\">Начать читать <span aria-hidden=\"true\">→</span></a>");
+        }
+        sb.append("<a class=\"btn btn-ghost\" href=\"#topics\">Все темы</a></div>");
+        if (!notes.isEmpty()) {
+            sb.append("<ul class=\"stats\">")
+              .append("<li><b>").append(notes.size()).append("</b> ")
+              .append(plural(notes.size(), "тема", "темы", "тем")).append("</li>")
+              .append("<li><b>").append(sections.size()).append("</b> ")
+              .append(plural(sections.size(), "раздел", "раздела", "разделов")).append("</li>");
+            if (formulas > 0) {
+                sb.append("<li><b>").append(formulas).append("</b> ")
+                  .append(plural(formulas, "формула", "формулы", "формул")).append("</li>");
+            }
+            if (tasks > 0) {
+                sb.append("<li><b>").append(tasks).append("</b> ")
+                  .append(plural(tasks, "задача", "задачи", "задач")).append("</li>");
+            }
+            sb.append("</ul>");
+        }
+        sb.append("</div></header>");
+
+        // --- что внутри
+        sb.append("<section class=\"features\">")
+          .append(feature("📐", "Формулы в рамках", "Главное выделено цветом и всегда под рукой.", "f-blue"))
+          .append(feature("✏️", "Разобранные задачи", "К каждой теме есть пример с решением.", "f-green"))
+          .append(feature("⚠️", "Частые ошибки", "На чём чаще всего теряют баллы.", "f-orange"))
+          .append(feature("🔍", "Быстрый поиск", "Нажми «/» и найди нужную тему за секунду.", "f-purple"))
+          .append("</section>");
+
+        // --- все темы по разделам
+        sb.append("<div class=\"topics-head\" id=\"topics\"><h2>Все темы</h2><p>Выбери раздел и тему.</p></div>");
         if (notes.isEmpty()) {
             sb.append("<p class=\"empty\">Пока нет ни одного конспекта. Добавь .html-файл в папку <code>notes</code> "
                     + "(шаблон лежит в <code>notes/_template.html</code>) и обнови страницу.</p>");
         }
         for (Map.Entry<String, List<Note>> e : sections.entrySet()) {
-            sb.append("<section class=\"section\"><h2>").append(esc(e.getKey())).append("</h2><div class=\"cards\">");
+            Theme t = themeOf(e.getKey());
+            int total = e.getValue().size();
+            sb.append("<section class=\"section themed\" style=\"--hue:").append(t.hue()).append("\">")
+              .append("<div class=\"sec-head\"><span class=\"sec-ico\" aria-hidden=\"true\">").append(t.icon()).append("</span>")
+              .append("<h2>").append(esc(e.getKey())).append("</h2>")
+              .append("<span class=\"sec-count\">").append(total).append(' ')
+              .append(plural(total, "тема", "темы", "тем")).append("</span></div><div class=\"cards\">");
+            int i = 0;
             for (Note n : e.getValue()) {
-                sb.append("<a class=\"card\" href=\"").append(u.note(n.slug())).append("\">")
+                i++;
+                sb.append("<a class=\"card themed\" style=\"--hue:").append(t.hue()).append("\" href=\"")
+                  .append(u.note(n.slug())).append("\">")
+                  .append("<span class=\"card-top\"><span class=\"card-ico\" aria-hidden=\"true\">").append(esc(iconOf(n)))
+                  .append("</span><span class=\"card-num\">").append(i < 10 ? "0" : "").append(i).append("</span></span>")
                   .append("<span class=\"card-title\">").append(esc(n.title())).append("</span>");
                 if (!n.summary().isEmpty()) {
                     sb.append("<span class=\"card-text\">").append(esc(n.summary())).append("</span>");
                 }
-                sb.append("</a>");
+                sb.append("<span class=\"card-go\">Открыть <span aria-hidden=\"true\">→</span></span></a>");
             }
             sb.append("</div></section>");
         }
@@ -390,12 +495,40 @@ public class Main {
         return sb.toString();
     }
 
+    static String feature(String icon, String title, String text, String cls) {
+        return "<div class=\"feature " + cls + "\"><span class=\"feature-ico\" aria-hidden=\"true\">" + icon + "</span>"
+                + "<h3>" + esc(title) + "</h3><p>" + esc(text) + "</p></div>";
+    }
+
     static String noteContent(Urls u, Note note, Note prev, Note next) {
+        String icon = iconOf(note);
+        String plain = note.body().replaceAll("(?s)<!--.*?-->", " ").replaceAll("(?s)<[^>]*>", " ").strip();
+        int words = plain.isEmpty() ? 0 : plain.split("\\s+").length;
+        int minutes = Math.max(1, (int) Math.round(words / 120.0));
+        int formulas = count(note.body(), "\\[");
+        int tasks = count(note.body(), "class=\"example\"");
+
         StringBuilder sb = new StringBuilder();
         sb.append("<article class=\"note\">");
-        sb.append("<p class=\"crumb\"><a href=\"").append(u.home()).append("\">Главная</a> / ")
-          .append(esc(note.section())).append("</p>");
-        sb.append("<h1>").append(esc(note.title())).append("</h1>");
+
+        // шапка конспекта
+        sb.append("<header class=\"note-head\" data-icon=\"").append(esc(icon)).append("\">")
+          .append("<span class=\"note-icon\" aria-hidden=\"true\">").append(esc(icon)).append("</span>")
+          .append("<div class=\"note-head-text\">")
+          .append("<p class=\"crumb\"><a href=\"").append(u.home()).append("\">Главная</a><span class=\"sep\">/</span>")
+          .append("<span class=\"badge\">").append(esc(note.section())).append("</span></p>")
+          .append("<h1>").append(esc(note.title())).append("</h1>")
+          .append("<ul class=\"chips\"><li>⏱ ").append(minutes).append(" мин чтения</li>");
+        if (formulas > 0) {
+            sb.append("<li>📐 ").append(formulas).append(' ')
+              .append(plural(formulas, "формула", "формулы", "формул")).append("</li>");
+        }
+        if (tasks > 0) {
+            sb.append("<li>✏️ ").append(tasks).append(' ')
+              .append(plural(tasks, "задача", "задачи", "задач")).append("</li>");
+        }
+        sb.append("</ul></div></header>");
+
         sb.append(fixLinks(u, note.body()));
         sb.append("</article>");
 
@@ -415,15 +548,29 @@ public class Main {
     }
 
     static String layout(Urls u, String pageTitle, List<Note> notes, String currentSlug, String content) {
+        int hue = 215;
+        if (currentSlug != null) {
+            for (Note n : notes) {
+                if (n.slug().equals(currentSlug)) {
+                    hue = themeOf(n.section()).hue();
+                    break;
+                }
+            }
+        }
+
         StringBuilder sb = new StringBuilder(8192);
         sb.append("<!doctype html>\n<html lang=\"ru\">\n<head>\n")
           .append("<meta charset=\"utf-8\">\n")
           .append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
+          .append("<meta name=\"theme-color\" content=\"#2a4fb0\">\n")
           .append("<title>").append(esc(pageTitle)).append("</title>\n")
+          .append("<link rel=\"icon\" href=\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>"
+                  + "<text y='.9em' font-size='90'>⚛️</text></svg>\">\n")
           .append("<link rel=\"stylesheet\" href=\"").append(u.assets()).append("style.css\">\n")
           .append("<script async id=\"MathJax-script\" src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\"></script>\n")
           .append("<script defer src=\"").append(u.assets()).append("app.js\"></script>\n")
-          .append("</head>\n<body>\n");
+          .append("</head>\n<body style=\"--hue:").append(hue).append("\">\n")
+          .append("<div class=\"progress\" id=\"progress\"></div>\n");
 
         // верхняя панель для телефонов
         sb.append("<header class=\"topbar\"><button class=\"menu-btn\" id=\"menu-btn\" type=\"button\" aria-label=\"Меню\">☰</button>")
@@ -437,7 +584,10 @@ public class Main {
           .append("<input id=\"search\" class=\"search\" type=\"search\" placeholder=\"Поиск по темам  ( / )\" autocomplete=\"off\">")
           .append("<nav class=\"nav\">");
         for (Map.Entry<String, List<Note>> e : bySection(notes).entrySet()) {
-            sb.append("<div class=\"nav-section\"><h3>").append(esc(e.getKey())).append("</h3>");
+            Theme t = themeOf(e.getKey());
+            sb.append("<div class=\"nav-section themed\" style=\"--hue:").append(t.hue()).append("\"><h3>")
+              .append("<span class=\"nav-ico\" aria-hidden=\"true\">").append(t.icon()).append("</span>")
+              .append(esc(e.getKey())).append("</h3>");
             for (Note n : e.getValue()) {
                 sb.append("<a href=\"").append(u.note(n.slug())).append("\"");
                 if (n.slug().equals(currentSlug)) {
@@ -450,7 +600,9 @@ public class Main {
         sb.append("</nav></aside>\n");
 
         sb.append("<main class=\"content\">\n").append(content)
-          .append("\n<footer class=\"footer\">").append(esc(SITE_NAME)).append("</footer>\n</main>\n")
+          .append("\n<footer class=\"footer\"><span class=\"footer-mark\">φ</span><span>").append(esc(SITE_NAME))
+          .append("</span></footer>\n</main>\n")
+          .append("<button class=\"to-top\" id=\"to-top\" type=\"button\" aria-label=\"Наверх\">↑</button>\n")
           .append("</body>\n</html>\n");
         return sb.toString();
     }
@@ -480,7 +632,7 @@ public class Main {
     }
 
     static String contentType(String name) {
-        String n = name.toLowerCase();
+        String n = name.toLowerCase(Locale.ROOT);
         if (n.endsWith(".css")) return "text/css; charset=utf-8";
         if (n.endsWith(".js")) return "text/javascript; charset=utf-8";
         if (n.endsWith(".svg")) return "image/svg+xml";
